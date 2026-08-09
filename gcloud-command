@@ -1,3 +1,5 @@
+All command use in this project:
+
 # List all Google Cloud accounts currently authenticated on your local machine
 gcloud auth list
 
@@ -7,14 +9,42 @@ gcloud config get project
 #
 gcloud config set project <YOUR_PROJECT_ID>
 
-# Enable APIs 
+Enable APIs
+```
 gcloud services enable \
  run.googleapis.com \
  aiplatform.googleapis.com \
  cloudbuild.googleapis.com
+```
 
 # Verify the APIs is ready
 gcloud services list --enabled
 
+export PROJECT_ID=$(gcloud config get-value project)
 
+export REGION=[insert-region-here]
+
+mkdir coffee-barista-agent && cd coffee-barista-agent
+
+cloudshell edit menu.json
+
+cat menu.json | python3 -m json.tool > /dev/null && echo "Valid JSON!"
+
+gcloud iam service-accounts create barista-agent-sa \
+    --description="Service account for Coffee Barista ADK agent on Cloud Run" \
+    --display-name="Barista Agent Service Account"
+
+  gcloud projects add-iam-policy-binding $PROJECT_ID \
+    --member="serviceAccount:barista-agent-sa@$PROJECT_ID.iam.gserviceaccount.com" \
+    --role="roles/aiplatform.user"
+
+gcloud run deploy coffee-barista \
+  --source . \
+  --region $REGION \
+  --allow-unauthenticated \
+  --labels dev-tutorial=codelab-streamlit-rag-adk \
+  --command "/cnb/lifecycle/launcher" \
+  --args "sh,-c,python3 -m streamlit run app.py --server.port=\$PORT --server.address=0.0.0.0 --server.enableCORS=false --server.enableXsrfProtection=false" \
+  --service-account "barista-agent-sa@$PROJECT_ID.iam.gserviceaccount.com" \
+  --set-env-vars GOOGLE_GENAI_USE_VERTEXAI=TRUE,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GOOGLE_CLOUD_LOCATION=global
 
